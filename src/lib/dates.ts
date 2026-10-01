@@ -42,3 +42,37 @@ export function eventStatus(event: Pick<EventItem, 'startDate' | 'endDate'>, tod
 export function formatDateRange(event: Pick<EventItem, 'startDate' | 'endDate'>): string {
   return !event.endDate || event.endDate === event.startDate ? event.startDate : `${event.startDate} — ${event.endDate}`;
 }
+
+export function addDays(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// "2026-10" → "2026 年 10 月"
+export function monthLabel(month: string): string {
+  const [y, m] = month.split('-');
+  return y && m ? `${y} 年 ${Number(m)} 月` : month;
+}
+
+// "2026-10-03" → "10/03"
+export function shortDate(isoDate: string): string {
+  return isoDate.slice(5).replace('-', '/');
+}
+
+export function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return d.toISOString().slice(0, 7);
+}
+
+// Days of a month laid out Sunday-first, padded with nulls to whole weeks.
+export function monthGrid(month: string): (string | null)[] {
+  const [y, m] = month.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const cells: (string | null)[] = Array(first.getUTCDay()).fill(null);
+  for (let day = 1; day <= daysInMonth; day++) cells.push(`${month}-${String(day).padStart(2, '0')}`);
+  while (cells.length % 7) cells.push(null);
+  return cells;
+}

@@ -54,6 +54,7 @@ export interface PublicEventDetail {
   sourceUrl: string;
   qualifiesFor: EventItem | null; // the event this one leads to
   qualifiedFrom: EventItem[]; // events that lead into this one
+  allowGuestReport: boolean;
 }
 
 // cache(): generateMetadata and the page share one lookup per request.
@@ -65,9 +66,10 @@ export const getPublicEvent = cache(async (id: string): Promise<PublicEventDetai
   const doc = await c.events.findOne({ _id, reviewStatus: '已發布' });
   if (!doc) return null;
   const { sports, sources } = await loadTaxonomy();
-  const [nextDoc, fromDocs] = await Promise.all([
+  const [nextDoc, fromDocs, settings] = await Promise.all([
     doc.qualifiesForId ? c.events.findOne({ _id: doc.qualifiesForId, reviewStatus: '已發布' }) : null,
     c.events.find({ qualifiesForId: _id, reviewStatus: '已發布' }).sort({ startDate: 1 }).toArray(),
+    loadSettings(),
   ]);
   const event = toEvent(doc, sports);
   const sport = sports.find((s) => s.id === event.sportId);
@@ -78,6 +80,7 @@ export const getPublicEvent = cache(async (id: string): Promise<PublicEventDetai
     sourceUrl: source?.url ?? '',
     qualifiesFor: nextDoc ? toEvent(nextDoc, sports) : null,
     qualifiedFrom: fromDocs.map((d) => toEvent(d, sports)),
+    allowGuestReport: settings.allowGuestReport,
   };
 });
 
