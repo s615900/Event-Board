@@ -1,36 +1,29 @@
-import type { NextRequest } from 'next/server';
-import { deleteRagicRecord, extractRagicField, fetchRagicFieldById, updateRagicRecord } from '@/server/ragic';
-import { handleRagicWrite, readJsonBody, sheetConfig } from '@/server/ragic-respond';
-import { requireRole } from '@/server/session';
-import { logChange } from '@/server/ragic-changelog';
-import { SOURCE_FIELD, sourceToRagicFields, type SourceBody } from '@/server/resources';
+import { jsonError, readJsonBody, withRole } from '@/server/api';
+import { logChange } from '@/server/changelog';
+import { collections } from '@/server/mongodb';
+import { parseObjectId, parseSource } from '@/server/validate';
 
-const config = () => sheetConfig('RAGIC_SOURCES_URL');
+type Ctx = RouteContext<'/api/sources/[id]'>;
 
-export async function PUT(request: NextRequest, ctx: RouteContext<'/api/sources/[id]'>) {
-  const auth = requireRole(request, '管理者', '編輯者');
-  if (auth.response) return auth.response;
-  const { id } = await ctx.params;
-  const body = await readJsonBody<SourceBody>(request);
-  const { response, data } = await handleRagicWrite(config(), (sheetUrl, apiKey) =>
-    updateRagicRecord(sheetUrl, apiKey, id, sourceToRagicFields(body)),
-  );
-  if (data) {
-    const name = extractRagicField(data, SOURCE_FIELD.name) || body.name || '';
-    await logChange(auth.user.email, '編輯', '資料來源', `編輯資料來源：${name}`);
-  }
-  return response;
-}
+export const PUT = withRole<Ctx>(['管理者', '編輯者'], async ({ request, user, context }) => {
+  const _id = parseObjectId((await context.params).id);
+  if (!_id) return jsonError('找不到這個資料來源', 404);
+  const parsed = parseSource(await readJsonBody(request));
+  if (parsed.error) return jsonError(parsed.error, 400);
+  const c = await collections();
+  const result = await c.sources.updateOne({ _id }, { $set: parsed.value });
+  if (!result.matchedCount) return jsonError('找不到這個資料來源', 404);
+  await logChange(user.email, '編輯', '資料來源', `編輯資料來源：${parsed.value.name}`);
+  return Response.json({ ok: true });
+});
 
-export async function DELETE(request: NextRequest, ctx: RouteContext<'/api/sources/[id]'>) {
-  const auth = requireRole(request, '管理者');
-  if (auth.response) return auth.response;
-  const { id } = await ctx.params;
-  const { sheetUrl, apiKey } = config();
-  const name = await fetchRagicFieldById(sheetUrl, apiKey, id, '協會名稱');
-  const { response, data } = await handleRagicWrite(config(), (url, key) => deleteRagicRecord(url, key, id));
-  if (data) {
-    await logChange(auth.user.email, '刪除', '資料來源', `刪除資料來源：${name}`);
-  }
-  return response;
-}
+export const DELETE = withRole<Ctx>(['管理者'], async ({ user, context }) => {
+  const _id = parseObjectId((await context.params).id);
+  if (!_id) return jsonError('找不到這個資料來源', 404);
+  const c = await collections();
+  const existing = await c.sources.findOneAndDelete({ _id });
+  if (!existing) return jsonError('找不到這個資料來源', 404);
+  await c.sports.updateMany({ sourceId: _id }, { $set: { sourceId: null } });
+  await logChange(user.email, '刪除', '資料來源', `刪除資料來源：${existing.name}`);
+  return Response.json({ ok: true });
+});

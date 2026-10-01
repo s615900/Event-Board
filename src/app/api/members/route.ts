@@ -1,30 +1,20 @@
-import type { NextRequest } from 'next/server';
-import { insertRagicRecord } from '@/server/ragic';
-import { handleRagicRead, handleRagicWrite, readJsonBody, sheetConfig } from '@/server/ragic-respond';
-import { requireAuth, requireRole } from '@/server/session';
-import { logChange } from '@/server/ragic-changelog';
-import { memberToRagicFields, type MemberBody } from '@/server/resources';
+import { ObjectId } from 'mongodb';
+import { ALL_ROLES, jsonError, readJsonBody, withRole } from '@/server/api';
+import { logChange } from '@/server/changelog';
+import { collections } from '@/server/mongodb';
+import { getMembers } from '@/server/queries';
+import { parseMember } from '@/server/validate';
 
-const config = () => sheetConfig('RAGIC_MEMBERS_URL');
+// Emails are personal data: signed-in staff only.
+export const GET = withRole(ALL_ROLES, async () => Response.json(await getMembers()));
 
-// Member emails are personal data: only signed-in staff may read the roster.
-export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.response) return auth.response;
-  return handleRagicRead(config());
-}
-
-export async function POST(request: NextRequest) {
-  const auth = requireRole(request, '管理者');
-  if (auth.response) return auth.response;
-  const body = await readJsonBody<MemberBody>(request);
-  const { response, data } = await handleRagicWrite(
-    config(),
-    (sheetUrl, apiKey) => insertRagicRecord(sheetUrl, apiKey, memberToRagicFields(body)),
-    201,
-  );
-  if (data) {
-    await logChange(auth.user.email, '新增', '成員', `新增成員：${body.name ?? ''}`);
-  }
-  return response;
-}
+export const POST = withRole(['管理者'], async ({ request, user }) => {
+  const parsed = parseMember(await readJsonBody(request));
+  if (parsed.error) return jsonError(parsed.error, 400);
+  const c = await collections();
+  if (await c.members.findOne({ email: parsed.value.email })) return jsonError('這個 Email 已經在成員名冊中', 409);
+  const _id = new ObjectId();
+  await c.members.insertOne({ _id, ...parsed.value });
+  await logChange(user.email, '新增', '成員', `新增成員：${parsed.value.name}`);
+  return Response.json({ id: _id.toHexString() }, { status: 201 });
+});

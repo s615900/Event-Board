@@ -1,10 +1,4 @@
-import type { NextRequest } from 'next/server';
-import { handleRagicRead, sheetConfig } from '@/server/ragic-respond';
-import { requireAuth } from '@/server/session';
+import { ALL_ROLES, withRole } from '@/server/api';
+import { getReports } from '@/server/queries';
 
-// Guest reports are internal triage data, only shown on the admin reports page.
-export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.response) return auth.response;
-  return handleRagicRead(sheetConfig('RAGIC_REPORTS_URL'));
-}
+export const GET = withRole(ALL_ROLES, async () => Response.json(await getReports()));

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { CircleHelp, X, Zap } from 'lucide-react';
+import type { EventStatus } from '@/lib/types';
 
 export function Brand({ admin = false }: { admin?: boolean }) {
   return <Link href={admin ? '/admin' : '/'} data-testid="link-brand" className="flex items-center gap-3">
@@ -12,8 +13,8 @@ export function Brand({ admin = false }: { admin?: boolean }) {
   </Link>;
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  const style = status === '報名中' ? 'bg-[#dceee8] text-[#237260]' : status === '即將報名' ? 'bg-[#f9e7c3] text-[#9a6917]' : status === '已截止' ? 'bg-[#f4ded6] text-[#a4523c]' : 'bg-[#e5e6e1] text-[#707773]';
+export function StatusBadge({ status }: { status: EventStatus }) {
+  const style = status === '進行中' ? 'bg-[#f9e0d8] text-[#b9533e]' : status === '即將舉行' ? 'bg-[#dceee8] text-[#237260]' : 'bg-[#e5e6e1] text-[#707773]';
   return <span data-testid={`status-event-${status}`} className={`rounded-full px-2 py-1 text-[10px] font-bold ${style}`}>{status}</span>;
 }
 

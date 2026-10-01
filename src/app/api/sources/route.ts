@@ -1,27 +1,18 @@
-import type { NextRequest } from 'next/server';
-import { insertRagicRecord } from '@/server/ragic';
-import { handleRagicRead, handleRagicWrite, readJsonBody, sheetConfig } from '@/server/ragic-respond';
-import { requireRole } from '@/server/session';
-import { logChange } from '@/server/ragic-changelog';
-import { sourceToRagicFields, type SourceBody } from '@/server/resources';
+import { ObjectId } from 'mongodb';
+import { ALL_ROLES, jsonError, readJsonBody, withRole } from '@/server/api';
+import { logChange } from '@/server/changelog';
+import { collections } from '@/server/mongodb';
+import { getSportsAndSources } from '@/server/queries';
+import { parseSource } from '@/server/validate';
 
-const config = () => sheetConfig('RAGIC_SOURCES_URL');
+export const GET = withRole(ALL_ROLES, async () => Response.json((await getSportsAndSources()).sources));
 
-export async function GET() {
-  return handleRagicRead(config());
-}
-
-export async function POST(request: NextRequest) {
-  const auth = requireRole(request, '管理者', '編輯者');
-  if (auth.response) return auth.response;
-  const body = await readJsonBody<SourceBody>(request);
-  const { response, data } = await handleRagicWrite(
-    config(),
-    (sheetUrl, apiKey) => insertRagicRecord(sheetUrl, apiKey, sourceToRagicFields(body)),
-    201,
-  );
-  if (data) {
-    await logChange(auth.user.email, '新增', '資料來源', `新增資料來源：${body.name ?? ''}`);
-  }
-  return response;
-}
+export const POST = withRole(['管理者', '編輯者'], async ({ request, user }) => {
+  const parsed = parseSource(await readJsonBody(request));
+  if (parsed.error) return jsonError(parsed.error, 400);
+  const c = await collections();
+  const _id = new ObjectId();
+  await c.sources.insertOne({ _id, ...parsed.value });
+  await logChange(user.email, '新增', '資料來源', `新增資料來源：${parsed.value.name}`);
+  return Response.json({ id: _id.toHexString() }, { status: 201 });
+});

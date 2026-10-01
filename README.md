@@ -1,13 +1,14 @@
 # 賽事看板（Next.js 版）
 
-由原 Replit pnpm monorepo（`賽事看板/artifacts/sports-board` + `artifacts/api-server`）遷移而來。
-Next.js 16 App Router + Tailwind CSS v4，前後端合併成單一專案，資料仍存放於 Ragic。
+全台國小、國中、高中運動賽事的集中網站。Next.js 16 App Router + Tailwind CSS v4 + MongoDB。
+由原 Replit 專案（Vite + Express + Ragic）遷移而來。
 
 ## 開發
 
 ```bash
-cp .env.example .env.local   # 填入 Ragic / Google / SESSION_SECRET
+cp .env.example .env.local   # 填入 MongoDB / SESSION_SECRET / Google
 npm install
+npm run db:init -- 你的Email  # 第一次使用：建立索引、前台設定與第一位管理者
 npm run dev                  # http://localhost:3000
 ```
 
@@ -21,20 +22,21 @@ src/
 │  ├─ (public)/              前台：/、/events、/events/[id]（共用 PublicShell 版型）
 │  ├─ admin/login/           後台登入
 │  ├─ admin/(dashboard)/     後台各頁（AdminGate 未登入會導回 /admin/login）
-│  ├─ api/                   Route Handlers（取代原本的 Express api-server）
-│  ├─ layout.tsx             字型（next/font）、AuthProvider、DataProvider
+│  ├─ api/                   Route Handlers（後台用，皆需登入；回報錯誤除外）
+│  ├─ layout.tsx             字型（next/font）、AuthProvider
 │  ├─ globals.css            Tailwind 與自訂 CSS
 │  ├─ error.tsx / not-found.tsx
 ├─ components/               public/、admin/ 各頁面元件與共用 ui.tsx
-├─ lib/                      前端：型別、示範資料、Ragic 欄位對照、auth / data context
-└─ server/                   僅限伺服器：Ragic API、session 簽章、Google OAuth、changelog
+├─ lib/                      前後端共用：型別、選項清單、日期與狀態計算、auth / 後台資料 context
+└─ server/                   僅限伺服器：MongoDB 連線與查詢、輸入驗證、session 簽章、Google OAuth
+scripts/init-db.mjs          資料庫初始化（npm run db:init）
 ```
 
-## 與原版的差異
+## 資料
 
-- 路由：wouter → App Router 檔案路由；`useSearchParams` 的頁面包在 `<Suspense>` 中。
-- API：Express routes → `src/app/api/**/route.ts`，路徑與行為相同（`/api/events` 等）。
-- 登入 cookie：cookie-parser 的簽章 → 自行以 HMAC-SHA256 簽章（`src/server/session.ts`），舊 cookie 會失效需重新登入。
-- Google redirect URI：原本寫死 `sportsboard-tw.replit.app`，改為 `GOOGLE_REDIRECT_URI` 環境變數。
-- 變更紀錄寫入改為 `await`（serverless 環境回應後可能被凍結，fire-and-forget 會遺失）。
-- 未搬移：`mcp-bridge`（Replit 遠端開發用）、`mockup-sandbox`、未使用的 shadcn/ui 元件與 `lib/db`（Drizzle 未被使用）。
+MongoDB 資料庫（`MONGODB_DB`，預設 `sports_board`）有以下 collection：
+`events`、`sports`、`sources`、`members`、`changelog`、`reports`、`settings`。
+
+- 前台頁面在伺服器端直接讀資料庫（每次請求都是最新資料），只會讀到「已發布」的賽事。
+- 賽事狀態（即將舉行／進行中／已結束）依比賽日期與台灣時間自動計算，不存在資料庫。
+- 後台 API 全部需要登入；權限：管理者（全部）、編輯者（新增／編輯，送出後一律待審核）、檢視者（唯讀）。

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Barlow_Condensed, Noto_Sans_TC, Space_Mono } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth';
-import { DataProvider } from '@/lib/data';
 import './globals.css';
 
 // CJK fonts are split into many unicode-range files, so skip preloading them.
@@ -42,9 +41,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html lang="zh-Hant-TW" className={`${notoSansTC.variable} ${barlowCondensed.variable} ${spaceMono.variable}`}>
       <body>
         <AuthProvider>
-          <DataProvider>
-            <div className="noise app-shell">{children}</div>
-          </DataProvider>
+          <div className="noise app-shell">{children}</div>
         </AuthProvider>
       </body>
     </html>

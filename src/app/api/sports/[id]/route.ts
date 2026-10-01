@@ -1,36 +1,31 @@
-import type { NextRequest } from 'next/server';
-import { deleteRagicRecord, extractRagicField, fetchRagicFieldById, updateRagicRecord } from '@/server/ragic';
-import { handleRagicWrite, readJsonBody, sheetConfig } from '@/server/ragic-respond';
-import { requireRole } from '@/server/session';
-import { logChange } from '@/server/ragic-changelog';
-import { SPORT_FIELD, sportToRagicFields, type SportBody } from '@/server/resources';
+import { jsonError, readJsonBody, withRole } from '@/server/api';
+import { logChange } from '@/server/changelog';
+import { collections } from '@/server/mongodb';
+import { parseObjectId, parseSport } from '@/server/validate';
 
-const config = () => sheetConfig('RAGIC_SPORTS_URL');
+type Ctx = RouteContext<'/api/sports/[id]'>;
 
-export async function PUT(request: NextRequest, ctx: RouteContext<'/api/sports/[id]'>) {
-  const auth = requireRole(request, '管理者', '編輯者');
-  if (auth.response) return auth.response;
-  const { id } = await ctx.params;
-  const body = await readJsonBody<SportBody>(request);
-  const { response, data } = await handleRagicWrite(config(), (sheetUrl, apiKey) =>
-    updateRagicRecord(sheetUrl, apiKey, id, sportToRagicFields(body)),
-  );
-  if (data) {
-    const name = extractRagicField(data, SPORT_FIELD.name) || body.name || '';
-    await logChange(auth.user.email, '編輯', '運動項目', `編輯運動項目：${name}`);
-  }
-  return response;
-}
+export const PUT = withRole<Ctx>(['管理者', '編輯者'], async ({ request, user, context }) => {
+  const _id = parseObjectId((await context.params).id);
+  if (!_id) return jsonError('找不到這個運動項目', 404);
+  const parsed = parseSport(await readJsonBody(request));
+  if (parsed.error) return jsonError(parsed.error, 400);
+  const c = await collections();
+  if (await c.sports.findOne({ name: parsed.value.name, _id: { $ne: _id } })) return jsonError('已經有同名的運動項目', 409);
+  const result = await c.sports.updateOne({ _id }, { $set: parsed.value });
+  if (!result.matchedCount) return jsonError('找不到這個運動項目', 404);
+  await logChange(user.email, '編輯', '運動項目', `編輯運動項目：${parsed.value.name}`);
+  return Response.json({ ok: true });
+});
 
-export async function DELETE(request: NextRequest, ctx: RouteContext<'/api/sports/[id]'>) {
-  const auth = requireRole(request, '管理者');
-  if (auth.response) return auth.response;
-  const { id } = await ctx.params;
-  const { sheetUrl, apiKey } = config();
-  const name = await fetchRagicFieldById(sheetUrl, apiKey, id, '項目名稱');
-  const { response, data } = await handleRagicWrite(config(), (url, key) => deleteRagicRecord(url, key, id));
-  if (data) {
-    await logChange(auth.user.email, '刪除', '運動項目', `刪除運動項目：${name}`);
-  }
-  return response;
-}
+export const DELETE = withRole<Ctx>(['管理者'], async ({ user, context }) => {
+  const _id = parseObjectId((await context.params).id);
+  if (!_id) return jsonError('找不到這個運動項目', 404);
+  const c = await collections();
+  const used = await c.events.countDocuments({ sportId: _id });
+  if (used) return jsonError(`還有 ${used} 場賽事使用這個運動項目，請先修改那些賽事`, 409);
+  const existing = await c.sports.findOneAndDelete({ _id });
+  if (!existing) return jsonError('找不到這個運動項目', 404);
+  await logChange(user.email, '刪除', '運動項目', `刪除運動項目：${existing.name}`);
+  return Response.json({ ok: true });
+});

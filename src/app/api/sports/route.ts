@@ -1,27 +1,19 @@
-import type { NextRequest } from 'next/server';
-import { insertRagicRecord } from '@/server/ragic';
-import { handleRagicRead, handleRagicWrite, readJsonBody, sheetConfig } from '@/server/ragic-respond';
-import { requireRole } from '@/server/session';
-import { logChange } from '@/server/ragic-changelog';
-import { sportToRagicFields, type SportBody } from '@/server/resources';
+import { ObjectId } from 'mongodb';
+import { ALL_ROLES, jsonError, readJsonBody, withRole } from '@/server/api';
+import { logChange } from '@/server/changelog';
+import { collections } from '@/server/mongodb';
+import { getSportsAndSources } from '@/server/queries';
+import { parseSport } from '@/server/validate';
 
-const config = () => sheetConfig('RAGIC_SPORTS_URL');
+export const GET = withRole(ALL_ROLES, async () => Response.json((await getSportsAndSources()).sports));
 
-export async function GET() {
-  return handleRagicRead(config());
-}
-
-export async function POST(request: NextRequest) {
-  const auth = requireRole(request, '管理者', '編輯者');
-  if (auth.response) return auth.response;
-  const body = await readJsonBody<SportBody>(request);
-  const { response, data } = await handleRagicWrite(
-    config(),
-    (sheetUrl, apiKey) => insertRagicRecord(sheetUrl, apiKey, sportToRagicFields(body)),
-    201,
-  );
-  if (data) {
-    await logChange(auth.user.email, '新增', '運動項目', `新增運動項目：${body.name ?? ''}`);
-  }
-  return response;
-}
+export const POST = withRole(['管理者', '編輯者'], async ({ request, user }) => {
+  const parsed = parseSport(await readJsonBody(request));
+  if (parsed.error) return jsonError(parsed.error, 400);
+  const c = await collections();
+  if (await c.sports.findOne({ name: parsed.value.name })) return jsonError('已經有同名的運動項目', 409);
+  const _id = new ObjectId();
+  await c.sports.insertOne({ _id, ...parsed.value });
+  await logChange(user.email, '新增', '運動項目', `新增運動項目：${parsed.value.name}`);
+  return Response.json({ id: _id.toHexString() }, { status: 201 });
+});

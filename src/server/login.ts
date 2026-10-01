@@ -1,10 +1,10 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
 import { logger } from './logger';
-import { findMemberByEmail } from './ragic-members';
+import { findMemberByEmail } from './members';
 import { ROLES, setSessionCookie, type Role, type SessionUser } from './session';
 
-// Looks the email up in the Ragic member roster and, if it belongs to an active
+// Looks the email up in the member roster and, if it belongs to an active
 // member, issues the session cookie. `redirectBase` set → browser redirect flow
 // (Google callback); unset → JSON response (test-mode login).
 export async function completeLogin(
@@ -21,7 +21,7 @@ export async function completeLogin(
   try {
     member = await findMemberByEmail(email);
   } catch (err) {
-    logger.error({ err }, 'Failed to look up member in Ragic');
+    logger.error({ err }, 'Failed to look up member');
     return fail('lookup_failed', 502, '無法連線至成員名冊，請稍後再試');
   }
 
