@@ -12,7 +12,10 @@ interface ChangelogBody {
   note?: string;
 }
 
-export async function GET() {
+// Entries carry staff emails, so the log is admin-only like the page that shows it.
+export async function GET(request: NextRequest) {
+  const auth = requireAuth(request);
+  if (auth.response) return auth.response;
   return handleRagicRead(changelogConfig(), (json) =>
     Object.fromEntries(
       Object.entries(json)

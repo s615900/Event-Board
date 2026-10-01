@@ -1,3 +1,4 @@
+import { normalizeDate } from './dates';
 import type { ChangeLogEntry, ErrorReport, EventItem, EventStatus, Member, ReportStatus, ReviewStatus, SiteSettings, SortBy, Source, Sport, ViewMode } from './types';
 
 // Browser-side helpers for the /api/* route handlers. Reads come back as raw
@@ -47,13 +48,14 @@ export function toEvents(records: RagicRecord[], sports: Sport[]): EventItem[] {
     const sport = sports.find(s => s.name === sportName);
     const groupsRaw = r['組別'];
     const groups = Array.isArray(groupsRaw) ? groupsRaw.map(String) : groupsRaw ? [String(groupsRaw)] : [];
-    const startdate = String(r['開始日期'] ?? '');
+    // Ragic dates look like 2026/11/04; the app (and <input type="date">) uses 2026-11-04.
+    const startdate = normalizeDate(String(r['開始日期'] ?? ''));
     return {
       id: `e${r._ragicId}`,
       name: String(r['賽事名稱'] ?? ''),
       sportName,
       startdate,
-      enddate: String(r['結束日期'] ?? '') || startdate,
+      enddate: normalizeDate(String(r['結束日期'] ?? '')) || startdate,
       status: (String(r['狀態'] ?? '') || '報名中') as EventStatus,
       level: groups.join('、'),
       location: String(r['地點'] ?? ''),

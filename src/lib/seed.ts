@@ -1,4 +1,4 @@
-import type { EventItem, Member, SiteSettings, Source, Sport } from './types';
+import type { EventItem, SiteSettings, Source, Sport } from './types';
 
 // Demo data shown until the Ragic-backed API responds (or when it isn't configured).
 export const seedEvents: EventItem[] = [
@@ -25,12 +25,6 @@ export const seedSports: Sport[] = [
   { id: 'sp5', name: '游泳', color: '#3E9CA8', group: '水域運動', sourceName: '中華民國大專院校體育總會' },
   { id: 'sp6', name: '鐵人三項', color: '#C54D50', group: '耐力運動', sourceName: '中華民國鐵人三項運動協會' },
   { id: 'sp7', name: '水域運動', color: '#487C9A', group: '水域運動', sourceName: '花蓮縣政府' },
-];
-
-export const seedMembers: Member[] = [
-  { id: 'm1', name: '陳怡君', email: 'yijun.chen@example.tw', role: '管理員', status: '啟用' },
-  { id: 'm2', name: '林志豪', email: 'coach.lin@example.tw', role: '編輯者', status: '啟用' },
-  { id: 'm3', name: '王小明', email: 'ming.wang@example.tw', role: '審核者', status: '啟用' },
 ];
 
 export const seedSettings: SiteSettings = { id: 'st1', name: '前台顯示控制', showEnded: false, allowGuestReport: false, pinFeatured: true, sortBy: '依日期', viewMode: '條列' };

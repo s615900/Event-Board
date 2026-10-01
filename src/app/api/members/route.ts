@@ -1,13 +1,16 @@
 import type { NextRequest } from 'next/server';
 import { insertRagicRecord } from '@/server/ragic';
 import { handleRagicRead, handleRagicWrite, readJsonBody, sheetConfig } from '@/server/ragic-respond';
-import { requireRole } from '@/server/session';
+import { requireAuth, requireRole } from '@/server/session';
 import { logChange } from '@/server/ragic-changelog';
 import { memberToRagicFields, type MemberBody } from '@/server/resources';
 
 const config = () => sheetConfig('RAGIC_MEMBERS_URL');
 
-export async function GET() {
+// Member emails are personal data: only signed-in staff may read the roster.
+export async function GET(request: NextRequest) {
+  const auth = requireAuth(request);
+  if (auth.response) return auth.response;
   return handleRagicRead(config());
 }
 

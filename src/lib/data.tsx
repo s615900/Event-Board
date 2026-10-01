@@ -3,7 +3,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import { fetchRagicRecords, toChangeLog, toEvents, toMembers, toReports, toSettings, toSources, toSports } from './ragic-client';
-import { seedEvents, seedMembers, seedSettings, seedSources, seedSports } from './seed';
+import { useAuth } from './auth';
+import { seedEvents, seedSettings, seedSources, seedSports } from './seed';
 import type { ChangeLogEntry, ErrorReport, EventItem, Member, Setter, SiteSettings, Source, Sport } from './types';
 
 // Server render and the first client render both use `initial`; the cached
@@ -46,11 +47,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useStored<EventItem[]>('events', seedEvents);
   const [sources, setSources] = useStored<Source[]>('sources', seedSources);
   const [sports, setSports] = useStored<Sport[]>('sports', seedSports);
-  const [members, setMembers] = useStored<Member[]>('members', seedMembers);
-  const [changelog, setChangelog] = useStored<ChangeLogEntry[]>('changelog', []);
-  const [reports, setReports] = useStored<ErrorReport[]>('reports', []);
+  // Staff-only data: loaded after sign-in, never cached in browser storage.
+  const [members, setMembers] = useState<Member[]>([]);
+  const [changelog, setChangelog] = useState<ChangeLogEntry[]>([]);
+  const [reports, setReports] = useState<ErrorReport[]>([]);
+  const { status } = useAuth();
   const [settings, setSettings] = useStored<SiteSettings>('settings', seedSettings);
   const [notice, setNotice] = useState('');
+
+  // Earlier versions cached the member roster, changelog and reports in
+  // localStorage for every visitor; clear those leftovers.
+  useEffect(() => {
+    try {
+      for (const key of ['members', 'changelog', 'reports']) localStorage.removeItem(`sports-board-${key}`);
+    } catch { /* storage blocked */ }
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -60,13 +71,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const [sourceRecords, sportRecords, eventRecords, memberRecords, changelogRecords, reportRecords, settingsRecords] = await Promise.all([
+      const [sourceRecords, sportRecords, eventRecords, settingsRecords] = await Promise.all([
         fetchRagicRecords('/api/sources'),
         fetchRagicRecords('/api/sports'),
         fetchRagicRecords('/api/events'),
-        fetchRagicRecords('/api/members'),
-        fetchRagicRecords('/api/changelog'),
-        fetchRagicRecords('/api/reports'),
         fetchRagicRecords('/api/settings'),
       ]);
       const nextSources = sourceRecords ? toSources(sourceRecords) : null;
@@ -74,13 +82,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (nextSources) setSources(nextSources);
       if (nextSports) setSports(nextSports);
       if (eventRecords) setEvents(toEvents(eventRecords, nextSports ?? sports));
-      if (memberRecords) setMembers(toMembers(memberRecords));
-      if (changelogRecords) setChangelog(toChangeLog(changelogRecords));
-      if (reportRecords) setReports(toReports(reportRecords));
       if (settingsRecords) setSettings(toSettings(settingsRecords, seedSettings));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (status !== 'authed') return;
+    let cancelled = false;
+    Promise.all([
+      fetchRagicRecords('/api/members'),
+      fetchRagicRecords('/api/changelog'),
+      fetchRagicRecords('/api/reports'),
+    ]).then(([memberRecords, changelogRecords, reportRecords]) => {
+      if (cancelled) return;
+      setMembers(memberRecords ? toMembers(memberRecords) : []);
+      setChangelog(changelogRecords ? toChangeLog(changelogRecords) : []);
+      setReports(reportRecords ? toReports(reportRecords) : []);
+    });
+    return () => {
+      cancelled = true;
+      // Drop staff data once signed out so it doesn't linger in memory.
+      setMembers([]);
+      setChangelog([]);
+      setReports([]);
+    };
+  }, [status]);
 
   const value: DataContextValue = {
     events, setEvents, sources, setSources, sports, setSports, members, setMembers,
