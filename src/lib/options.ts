@@ -8,7 +8,7 @@ export const COUNTIES = [
   '嘉義市', '嘉義縣', '臺南市', '高雄市', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣', '澎湖縣', '金門縣', '連江縣',
 ] as const;
 export const REVIEW_STATUSES = ['已發布', '待審核', '退回修正'] as const;
-export const SPORT_GROUPS = ['陸上運動', '球類運動', '技擊運動', '水上運動', '其他'] as const;
+export const SPORT_GROUPS = ['陸上運動', '球類運動', '技擊運動', '水上運動', '冬季運動', '其他'] as const;
 export const SOURCE_FORMATS = ['HTML', 'PDF', '圖片', '純文字', '結構化清單', 'JSON'] as const;
 export const DIFFICULTIES = ['低', '中', '高'] as const;
 export const ROLES = ['管理者', '編輯者', '檢視者'] as const;
