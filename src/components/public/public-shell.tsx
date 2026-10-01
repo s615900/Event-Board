@@ -1,0 +1,13 @@
+'use client';
+
+import { useState, type ReactNode } from 'react';
+import Link from 'next/link';
+import { Menu, ShieldCheck, X } from 'lucide-react';
+import { Brand } from '@/components/ui';
+import { useData } from '@/lib/data';
+
+export function PublicShell({ children }: { children: ReactNode }) {
+  const { events } = useData();
+  const [menu, setMenu] = useState(false);
+  return <div className="min-h-[100dvh] bg-[#f4efe5] text-[#213746]"><header className="relative z-40 border-b border-[#ded5c8] bg-[#f8f4ec]/95 backdrop-blur"><div className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-4 lg:px-8"><Brand /><nav className={`${menu ? 'flex' : 'hidden'} absolute left-0 right-0 top-[73px] z-30 flex-col gap-1 border-b border-[#ded5c8] bg-[#f8f4ec] p-4 md:static md:flex md:flex-row md:items-center md:border-0 md:bg-transparent md:p-0`}><Link href="/" onClick={() => setMenu(false)} data-testid="link-nav-home" className="rounded-lg px-3 py-2 text-sm font-bold text-[#53636a] hover:bg-[#ebe4d7]">找賽事</Link><Link href="/events" onClick={() => setMenu(false)} data-testid="link-nav-events" className="rounded-lg px-3 py-2 text-sm font-bold text-[#53636a] hover:bg-[#ebe4d7]">全部賽事 <span className="ml-1 font-mono-custom text-[11px] text-[#ed7659]">{events.filter(e => e.reviewStatus === '已發布').length}</span></Link><span className="mx-1 hidden h-5 w-px bg-[#ded5c8] md:block" /><Link href="/admin" data-testid="link-nav-admin" className="flex items-center gap-2 rounded-lg bg-[#17364a] px-3 py-2 text-sm font-bold text-[#f8f4ec] hover:bg-[#0d5265]"><ShieldCheck size={15} />管理後台</Link></nav><button onClick={() => setMenu(!menu)} data-testid="button-mobile-menu" aria-label={menu ? '關閉選單' : '開啟選單'} aria-expanded={menu} className="rounded-lg p-2 md:hidden">{menu ? <X size={21} /> : <Menu size={21} />}</button></div></header>{menu && <div onClick={() => setMenu(false)} data-testid="overlay-mobile-menu" className="fixed inset-0 z-20 md:hidden" />}{children}<footer className="mt-20 bg-[#17364a] text-[#dfe7e5]"><div className="mx-auto flex max-w-[1240px] flex-col gap-7 px-5 py-10 md:flex-row md:items-end md:justify-between lg:px-8"><div><Brand /><p className="mt-4 max-w-sm text-sm leading-7 text-[#aabdc1]">把台灣每一場值得奔跑的比賽，整理成一張可靠的賽事桌。</p></div><div className="text-left text-xs leading-6 text-[#aabdc1] md:text-right"><p className="font-mono-custom uppercase tracking-wider text-[#ed7659]">Data desk / v0.1</p><p>資料為示範用途，實際資訊請以主辦單位公告為準。</p></div></div></footer></div>;
+}

@@ -1,26 +1,49 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import 'tailwindcss';
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* next/font (src/app/layout.tsx) exposes --font-noto-sans-tc / --font-barlow-condensed / --font-space-mono. */
+:root {
+  --background: 38 35% 94%;
+  --foreground: 215 31% 18%;
+  --border: 35 19% 83%;
+  --primary: 186 75% 29%;
+  --card: 40 38% 98%;
+  --app-font-sans: var(--font-noto-sans-tc), system-ui, sans-serif;
+  --app-font-mono: var(--font-space-mono), monospace;
+  --app-font-display: var(--font-barlow-condensed), sans-serif;
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply font-sans antialiased bg-background text-foreground; margin: 0; }
+  button, input, select, textarea { font: inherit; }
+}
+
+@layer utilities {
+  .font-display { font-family: var(--app-font-display); }
+  .font-mono-custom { font-family: var(--app-font-mono); }
+  .noise::after { content: ''; position: fixed; inset: 0; pointer-events: none; opacity: .028; z-index: 50; background-image: repeating-linear-gradient(0deg, rgba(20,35,40,.18) 0 1px, transparent 1px 3px); }
+}
+
+/* Shared look for every input/select/textarea inside an admin form <Field>. */
+@layer components {
+  .field-controls :where(input, select, textarea) {
+    @apply w-full rounded-lg border border-[#d4c9ba] bg-[#f8f4ec] px-3 py-2.5 text-sm outline-none;
   }
+  .field-controls :where(input, textarea) { @apply font-normal; }
+  .field-controls input:focus { @apply border-[#087f8c]; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+.app-shell { min-height: 100dvh; }
+.page-enter { animation: rise .45s ease both; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.stripe { background: repeating-linear-gradient(135deg, transparent 0 11px, rgba(255,255,255,.06) 11px 13px); }
+.event-row { transition: transform .2s ease, border-color .2s ease, background-color .2s ease; }
+.event-row:hover { transform: translateX(4px); border-color: hsl(var(--primary)); background-color: hsl(var(--card)); }
