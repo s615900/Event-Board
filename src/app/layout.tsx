@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Barlow_Condensed, Noto_Sans_TC, Space_Mono } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import { AuthProvider } from '@/lib/auth';
 import './globals.css';
 
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <AuthProvider>
           <div className="noise app-shell">{children}</div>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
